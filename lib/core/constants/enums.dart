@@ -1,5 +1,5 @@
-/// Domain enums shared across features. Keeping them centralized avoids
-/// stringly-typed bugs and gives us one source of truth for (de)serialization.
+// Domain enums shared across features. Keeping them centralized avoids
+// stringly-typed bugs and gives us one source of truth for (de)serialization.
 
 /// The four user roles. Permissions are derived from this across the app.
 enum UserRole {
