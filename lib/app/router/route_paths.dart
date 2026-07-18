@@ -6,12 +6,16 @@ class RoutePaths {
   RoutePaths._();
 
   static const String welcome = '/';
+  static const String splash = '/splash';
   static const String login = '/login';
   static const String signup = '/signup';
+  static const String forgotPassword = '/forgot-password';
 
   // Owner / reception
   static const String dashboard = '/dashboard';
   static const String members = '/members';
+  static const String analytics = '/analytics';
+  static const String profile = '/profile';
   static const String plans = '/plans';
   static const String payments = '/payments';
   static const String attendance = '/attendance';
