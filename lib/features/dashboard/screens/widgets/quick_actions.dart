@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/widgets/demo_dialogs.dart';
 import '../../../../core/widgets/glass_card.dart';
 
 /// The four primary owner shortcuts (Add Member, Scan QR, Collect Payment, Add
@@ -17,6 +18,14 @@ class QuickActions extends StatelessWidget {
     _Action('Add Trainer', Icons.sports_gymnastics_rounded, AppColors.warning),
   ];
 
+  void _handle(BuildContext context, _Action action) {
+    if (action.label == 'Add Member') {
+      DemoDialogs.addMember(context);
+    } else {
+      context.showSnack('${action.label} — coming soon');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GridView.count(
@@ -30,7 +39,7 @@ class QuickActions extends StatelessWidget {
         for (final a in _actions)
           _ActionTile(
             action: a,
-            onTap: () => context.showSnack('${a.label} — coming soon'),
+            onTap: () => _handle(context, a),
           ),
       ],
     );

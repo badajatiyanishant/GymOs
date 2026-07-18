@@ -94,8 +94,9 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () => context.go(RoutePaths.dashboard),
             ),
             const SizedBox(height: 28),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   "Don't have an account?",

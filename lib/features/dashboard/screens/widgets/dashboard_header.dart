@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/widgets/demo_dialogs.dart';
 import '../../../demo/demo_data.dart';
 
 /// Dashboard greeting header: gym logo mark, gym name, a welcome line and a
@@ -45,7 +46,7 @@ class DashboardHeader extends StatelessWidget {
               ],
             ),
           ),
-          _NotificationButton(onPressed: () {}),
+          _NotificationButton(onPressed: () => DemoDialogs.notifications(context)),
         ],
       ),
     );

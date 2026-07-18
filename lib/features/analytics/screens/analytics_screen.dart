@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/widgets/charts.dart';
+import '../../../core/widgets/fade_in_up.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/responsive_center.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/stat_card.dart';
 import '../../demo/demo_data.dart';
@@ -19,79 +21,83 @@ class AnalyticsScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                child: Row(
-                  children: [
-                    Text('Analytics', style: context.text.headlineSmall),
-                    const Spacer(),
-                    _PeriodChip(),
-                  ],
+        child: SingleChildScrollView(
+          child: ResponsiveCenter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: Row(
+                    children: [
+                      Text('Analytics', style: context.text.headlineSmall),
+                      const Spacer(),
+                      _PeriodChip(),
+                    ],
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                  child: StaggeredColumn(
+                    step: const Duration(milliseconds: 90),
+                    children: [
+                      const _GrowthCards(),
+                      const SizedBox(height: 24),
+                      const _ChartCard(
+                        title: 'Revenue',
+                        subtitle: 'Last 6 months (₹ thousands)',
+                        child: LineChartCard(
+                          values: DemoData.monthlyRevenue,
+                          labels: DemoData.monthLabels,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const _ChartCard(
+                        title: 'Attendance',
+                        subtitle: 'Check-ins this week',
+                        child: BarChartCard(
+                          values: DemoData.weeklyAttendance,
+                          labels: DemoData.weekdayLabels,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const _ChartCard(
+                        title: 'New Members',
+                        subtitle: 'Sign-ups over 6 months',
+                        child: LineChartCard(
+                          values: DemoData.newMembers,
+                          labels: DemoData.monthLabels,
+                          color: AppColors.info,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _ChartCard(
+                        title: 'Membership Distribution',
+                        subtitle: 'Active plans by type',
+                        child: DonutChartCard(
+                          centerLabel: 'Members',
+                          centerValue: '${_distributionTotal()}',
+                          slices: [
+                            for (var i = 0;
+                                i < DemoData.planDistribution.length;
+                                i++)
+                              DonutSlice(
+                                DemoData.planDistribution[i].label,
+                                DemoData.planDistribution[i].value.toDouble(),
+                                AppColors.chartPalette[
+                                    i % AppColors.chartPalette.length],
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-              sliver: SliverList.list(
-                children: [
-                  const _GrowthCards(),
-                  const SizedBox(height: 24),
-                  const _ChartCard(
-                    title: 'Revenue',
-                    subtitle: 'Last 6 months (₹ thousands)',
-                    child: LineChartCard(
-                      values: DemoData.monthlyRevenue,
-                      labels: DemoData.monthLabels,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const _ChartCard(
-                    title: 'Attendance',
-                    subtitle: 'Check-ins this week',
-                    child: BarChartCard(
-                      values: DemoData.weeklyAttendance,
-                      labels: DemoData.weekdayLabels,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const _ChartCard(
-                    title: 'New Members',
-                    subtitle: 'Sign-ups over 6 months',
-                    child: LineChartCard(
-                      values: DemoData.newMembers,
-                      labels: DemoData.monthLabels,
-                      color: AppColors.info,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _ChartCard(
-                    title: 'Membership Distribution',
-                    subtitle: 'Active plans by type',
-                    child: DonutChartCard(
-                      centerLabel: 'Members',
-                      centerValue: '${_distributionTotal()}',
-                      slices: [
-                        for (var i = 0;
-                            i < DemoData.planDistribution.length;
-                            i++)
-                          DonutSlice(
-                            DemoData.planDistribution[i].label,
-                            DemoData.planDistribution[i].value.toDouble(),
-                            AppColors.chartPalette[
-                                i % AppColors.chartPalette.length],
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

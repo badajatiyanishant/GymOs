@@ -4,8 +4,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/charts.dart';
+import '../../../core/widgets/demo_load.dart';
+import '../../../core/widgets/fade_in_up.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/responsive_center.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/stat_card.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/user_avatar.dart';
@@ -24,32 +28,46 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            const SliverToBoxAdapter(child: DashboardHeader()),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-              sliver: SliverList.list(
+        child: RefreshIndicator(
+          onRefresh: () => Future<void>.delayed(
+            const Duration(milliseconds: 700),
+          ),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ResponsiveCenter(
+              child: Column(
                 children: [
-                  const _StatGrid(),
-                  const SizedBox(height: 24),
-                  const _RevenueCard(),
-                  const SizedBox(height: 24),
-                  const SectionHeader(title: 'Quick Actions'),
-                  const SizedBox(height: 4),
-                  const QuickActions(),
-                  const SizedBox(height: 20),
-                  SectionHeader(
-                    title: 'Recent Payments',
-                    actionLabel: 'See all',
-                    onAction: () {},
+                  const DashboardHeader(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+                    child: DemoLoad(
+                      skeleton: const _DashboardSkeleton(),
+                      builder: (context) => StaggeredColumn(
+                        children: [
+                          const _StatGrid(),
+                          const SizedBox(height: 24),
+                          const _RevenueCard(),
+                          const SizedBox(height: 24),
+                          const SectionHeader(title: 'Quick Actions'),
+                          const SizedBox(height: 4),
+                          const QuickActions(),
+                          const SizedBox(height: 20),
+                          SectionHeader(
+                            title: 'Recent Payments',
+                            actionLabel: 'See all',
+                            onAction: () => context.showSnack(
+                                'Payments — full history coming soon'),
+                          ),
+                          const SizedBox(height: 4),
+                          const _RecentPayments(),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  const _RecentPayments(),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -237,3 +255,64 @@ class _PaymentTile extends StatelessWidget {
     );
   }
 }
+
+/// Loading placeholder mirroring the dashboard's rough shape (KPI grid, chart,
+/// list) so the transition to real content feels seamless.
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: 1.35,
+          children: const [
+            _SkeletonCard(),
+            _SkeletonCard(),
+            _SkeletonCard(),
+            _SkeletonCard(),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const Skeleton(height: 220, radius: 18),
+        const SizedBox(height: 24),
+        const Skeleton(height: 96, radius: 18),
+        const SizedBox(height: 24),
+        const Skeleton(height: 260, radius: 18),
+      ],
+    );
+  }
+}
+
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerTheme.color ?? Colors.grey),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Skeleton(height: 42, width: 42, radius: 12),
+          Spacer(),
+          Skeleton(height: 22, width: 80),
+          SizedBox(height: 8),
+          Skeleton(height: 12, width: 60),
+        ],
+      ),
+    );
+  }
+}
+

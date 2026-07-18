@@ -4,7 +4,10 @@ import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/widgets/demo_dialogs.dart';
+import '../../../core/widgets/fade_in_up.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/responsive_center.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/user_avatar.dart';
@@ -50,7 +53,7 @@ class _MembersScreenState extends State<MembersScreen> {
     final members = _filtered;
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.showSnack('Add Member — coming soon'),
+        onPressed: () => DemoDialogs.addMember(context),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add_alt_1_rounded),
@@ -58,8 +61,9 @@ class _MembersScreenState extends State<MembersScreen> {
       ),
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
+        child: ResponsiveCenter(
+          child: Column(
+            children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: Row(
@@ -109,11 +113,15 @@ class _MembersScreenState extends State<MembersScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
                       itemCount: members.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, i) =>
-                          _MemberCard(member: members[i]),
+                      itemBuilder: (context, i) => FadeInUp(
+                        key: ValueKey(members[i].name),
+                        delay: Duration(milliseconds: 40 * i),
+                        child: _MemberCard(member: members[i]),
+                      ),
                     ),
             ),
           ],
+          ),
         ),
       ),
     );
