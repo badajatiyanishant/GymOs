@@ -79,46 +79,67 @@ class _StatGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 14,
-      crossAxisSpacing: 14,
-      childAspectRatio: 1.35,
-      children: [
-        StatCard(
-          label: "Today's Revenue",
-          value: Formatters.currency(DemoData.todayRevenue),
-          icon: Icons.payments_rounded,
-          color: AppColors.primary,
-          trend: '+12%',
-        ),
-        const StatCard(
-          label: 'Active Members',
-          value: '${DemoData.activeMembers}',
-          icon: Icons.groups_rounded,
-          color: AppColors.secondary,
-          trend: '+5%',
-        ),
-        const StatCard(
-          label: "Today's Attendance",
-          value: '${DemoData.todayAttendance}',
-          icon: Icons.how_to_reg_rounded,
-          color: AppColors.info,
-          trend: '+8%',
-        ),
-        const StatCard(
-          label: 'Pending Renewals',
-          value: '${DemoData.pendingRenewals}',
-          icon: Icons.autorenew_rounded,
-          color: AppColors.warning,
-          trend: '-3%',
-          trendUp: false,
-        ),
-      ],
+    const cards = [
+      _StatData("Today's Revenue", null, Icons.payments_rounded,
+          AppColors.primary, '+12%', true),
+      _StatData('Active Members', '${DemoData.activeMembers}',
+          Icons.groups_rounded, AppColors.secondary, '+5%', true),
+      _StatData("Today's Attendance", '${DemoData.todayAttendance}',
+          Icons.how_to_reg_rounded, AppColors.info, '+8%', true),
+      _StatData('Pending Renewals', '${DemoData.pendingRenewals}',
+          Icons.autorenew_rounded, AppColors.warning, '-3%', false),
+    ];
+
+    // Compute a card height from the actual available width so the two-column
+    // grid always gives the content enough vertical room on 360–430px phones,
+    // instead of relying on a fixed aspect ratio that clips text.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 14.0;
+        final cardWidth = (constraints.maxWidth - spacing) / 2;
+        final cardHeight = (cardWidth * 0.98).clamp(150.0, 182.0);
+        return GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: spacing,
+          crossAxisSpacing: spacing,
+          mainAxisExtent: cardHeight,
+          children: [
+            for (final c in cards)
+              StatCard(
+                label: c.label,
+                value: c.value ??
+                    Formatters.currency(DemoData.todayRevenue),
+                icon: c.icon,
+                color: c.color,
+                trend: c.trend,
+                trendUp: c.trendUp,
+              ),
+          ],
+        );
+      },
     );
   }
+}
+
+/// Lightweight holder so the KPI grid can be declared once and laid out inside
+/// a [LayoutBuilder] without repeating each card's constructor.
+class _StatData {
+  final String label;
+  final String? value; // null = computed (currency-formatted) at build
+  final IconData icon;
+  final Color color;
+  final String trend;
+  final bool trendUp;
+  const _StatData(
+    this.label,
+    this.value,
+    this.icon,
+    this.color,
+    this.trend,
+    this.trendUp,
+  );
 }
 
 class _RevenueCard extends StatelessWidget {
@@ -266,19 +287,26 @@ class _DashboardSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 14,
-          crossAxisSpacing: 14,
-          childAspectRatio: 1.35,
-          children: const [
-            _SkeletonCard(),
-            _SkeletonCard(),
-            _SkeletonCard(),
-            _SkeletonCard(),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const spacing = 14.0;
+            final cardWidth = (constraints.maxWidth - spacing) / 2;
+            final cardHeight = (cardWidth * 0.98).clamp(150.0, 182.0);
+            return GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: spacing,
+              crossAxisSpacing: spacing,
+              mainAxisExtent: cardHeight,
+              children: const [
+                _SkeletonCard(),
+                _SkeletonCard(),
+                _SkeletonCard(),
+                _SkeletonCard(),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 24),
         const Skeleton(height: 220, radius: 18),

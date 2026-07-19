@@ -207,8 +207,14 @@ class _MemberCard extends StatelessWidget {
                     Icon(Icons.card_membership_rounded,
                         size: 14, color: context.text.bodySmall?.color),
                     const SizedBox(width: 4),
-                    Text('${member.plan} • ${_expiryLabel(member)}',
-                        style: context.text.bodySmall),
+                    Flexible(
+                      child: Text(
+                        '${member.plan} • ${_expiryLabel(member)}',
+                        style: context.text.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ],

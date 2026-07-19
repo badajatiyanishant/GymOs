@@ -29,48 +29,74 @@ class StatCard extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     return GlassCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
               Container(
-                height: 42,
-                width: 42,
+                height: 40,
+                width: 40,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: color, size: 22),
+                child: Icon(icon, color: color, size: 21),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               if (trend != null)
-                Row(
-                  children: [
-                    Icon(
-                      trendUp
-                          ? Icons.trending_up_rounded
-                          : Icons.trending_down_rounded,
-                      size: 16,
-                      color: trendUp ? AppColors.success : AppColors.danger,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      trend!,
-                      style: t.bodySmall?.copyWith(
+                Flexible(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(
+                        trendUp
+                            ? Icons.trending_up_rounded
+                            : Icons.trending_down_rounded,
+                        size: 15,
                         color: trendUp ? AppColors.success : AppColors.danger,
-                        fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 2),
+                      Flexible(
+                        child: Text(
+                          trend!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodySmall?.copyWith(
+                            color:
+                                trendUp ? AppColors.success : AppColors.danger,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(value, style: t.headlineSmall),
-          const SizedBox(height: 2),
-          Text(label, style: t.bodySmall, maxLines: 1),
+          const SizedBox(height: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, style: t.headlineSmall, maxLines: 1),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: t.bodySmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

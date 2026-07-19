@@ -28,20 +28,30 @@ class QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 4,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 0.82,
-      children: [
-        for (final a in _actions)
-          _ActionTile(
-            action: a,
-            onTap: () => _handle(context, a),
-          ),
-      ],
+    // Size tiles from the real available width so two-word labels ("Collect
+    // Payment", "Add Trainer") have room to wrap on narrow phones instead of
+    // clipping. Taller tiles keep the icon + 2-line label comfortably readable.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 12.0;
+        final tileWidth = (constraints.maxWidth - spacing * 3) / 4;
+        final tileHeight = (tileWidth + 46).clamp(98.0, 132.0);
+        return GridView.count(
+          crossAxisCount: 4,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: spacing,
+          crossAxisSpacing: spacing,
+          mainAxisExtent: tileHeight,
+          children: [
+            for (final a in _actions)
+              _ActionTile(
+                action: a,
+                onTap: () => _handle(context, a),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -63,28 +73,31 @@ class _ActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            height: 44,
-            width: 44,
+            height: 42,
+            width: 42,
             decoration: BoxDecoration(
               color: action.color.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(action.icon, color: action.color, size: 22),
+            child: Icon(action.icon, color: action.color, size: 21),
           ),
           const SizedBox(height: 8),
-          Text(
-            action.label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              height: 1.1,
+          Flexible(
+            child: Text(
+              action.label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.text.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                height: 1.15,
+                fontSize: 11.5,
+              ),
             ),
           ),
         ],
