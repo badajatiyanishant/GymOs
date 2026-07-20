@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../core/constants/enums.dart';
 import '../domain/app_user.dart';
 import 'auth_repository.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 /// Production [AuthRepository] backed by Firebase Auth + Firestore.
 ///
@@ -123,19 +122,9 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<AppUser?> signInWithGoogle() async {
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+      final provider = GoogleAuthProvider();
 
-      await googleSignIn.initialize();
-
-      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
-
-      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithPopup(provider);
 
       final user = userCredential.user;
       if (user == null) return null;

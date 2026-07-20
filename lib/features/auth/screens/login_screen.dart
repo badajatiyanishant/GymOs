@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:flutter/foundation.dart';
 import '../../../app/router/app_router.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../core/theme/app_colors.dart';
@@ -57,7 +57,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context.showSnack(e.message, error: true);
     } catch (_) {
       if (!mounted) return;
-      context.showSnack('Sign in failed. Please try again.', error: true);
+      context.showSnack(
+        'Sign in failed. Please try again.',
+        error: true,
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -151,10 +154,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 } on AuthException catch (e) {
                   if (!mounted) return;
                   context.showSnack(e.message, error: true);
-                } catch (_) {
+                } catch (e, stackTrace) {
+                  debugPrint('Google Sign-In Error: $e');
+                  debugPrintStack(stackTrace: stackTrace);
+
                   if (!mounted) return;
+
                   context.showSnack(
-                    'Google sign-in failed.',
+                    e.toString(),
                     error: true,
                   );
                 } finally {
