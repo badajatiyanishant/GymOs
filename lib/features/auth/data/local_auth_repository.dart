@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/services/local_storage_service.dart';
@@ -22,29 +23,16 @@ class LocalAuthRepository implements AuthRepository {
   AppUser? _readStored() {
     final raw = _store.getString(_kUser);
     if (raw == null || raw.isEmpty) return null;
-    final parts = raw.split('');
-    if (parts.length < 5) return null;
-    return AppUser(
-      uid: parts[0],
-      email: parts[1],
-      displayName: parts[2],
-      phone: parts[3],
-      gymId: parts[4],
-      role: UserRole.fromString(parts.length > 5 ? parts[5] : null),
-    );
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return AppUser.fromJson(json);
+    } catch (_) {
+      return null;
+    }
   }
 
-  Future<void> _writeStored(AppUser user) => _store.setString(
-        _kUser,
-        [
-          user.uid,
-          user.email,
-          user.displayName,
-          user.phone,
-          user.gymId,
-          user.role.name,
-        ].join(''),
-      );
+  Future<void> _writeStored(AppUser user) =>
+      _store.setString(_kUser, jsonEncode(user.toJson()));
 
   @override
   Stream<AppUser?> authState() async* {

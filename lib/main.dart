@@ -28,8 +28,7 @@ Future<void> main() async {
     // Lightweight key/value store for flags + the local-mode repositories.
     await LocalStorageService.instance.init();
 
-    // Firebase: core + Crashlytics + Analytics. No-op until
-    // `flutterfire configure` has generated real firebase_options.dart.
+    // Initialize Firebase before starting the application.
     await FirebaseBootstrap.init();
 
     if (FirebaseBootstrap.isActive) {

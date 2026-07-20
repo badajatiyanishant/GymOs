@@ -7,10 +7,10 @@ import '../../firebase_options.dart';
 
 /// One-stop Firebase initialization.
 ///
-/// Called from main() before runApp. If `firebase_options.dart` is still the
-/// placeholder (flutterfire configure not run yet), initialization is skipped
-/// and [isActive] stays false so providers fall back to local repositories —
-/// the app keeps working end-to-end either way.
+/// Called from main() before runApp. Initializes Firebase with the generated
+/// [DefaultFirebaseOptions]. If initialization fails for any reason, [isActive]
+/// stays false so providers fall back to local repositories — the app keeps
+/// working end-to-end either way.
 class FirebaseBootstrap {
   FirebaseBootstrap._();
 
@@ -21,15 +21,11 @@ class FirebaseBootstrap {
   static bool get isActive => _active;
 
   static Future<void> init() async {
-    if (!DefaultFirebaseOptions.isConfigured) {
-      debugPrint('Firebase: placeholder options detected — running in local '
-          'mode. Run `flutterfire configure` to enable the cloud backend.');
-      return;
-    }
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+
       _active = true;
 
       // Crashlytics is mobile-only; web crashes go to the zone handler.
@@ -37,14 +33,21 @@ class FirebaseBootstrap {
         FlutterError.onError =
             FirebaseCrashlytics.instance.recordFlutterFatalError;
         PlatformDispatcher.instance.onError = (error, stack) {
-          FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+          FirebaseCrashlytics.instance.recordError(
+            error,
+            stack,
+            fatal: true,
+          );
           return true;
         };
       }
 
-      await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
-    } catch (e) {
-      debugPrint('Firebase init failed — continuing in local mode: $e');
+      await FirebaseAnalytics.instance
+          .setAnalyticsCollectionEnabled(true);
+    } catch (e, st) {
+      _active = false;
+      debugPrint('Firebase initialization failed: $e');
+      debugPrintStack(stackTrace: st);
     }
   }
 
