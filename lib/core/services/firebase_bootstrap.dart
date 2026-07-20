@@ -42,8 +42,7 @@ class FirebaseBootstrap {
         };
       }
 
-      await FirebaseAnalytics.instance
-          .setAnalyticsCollectionEnabled(true);
+      await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
     } catch (e, st) {
       _active = false;
       debugPrint('Firebase initialization failed: $e');

@@ -44,7 +44,13 @@ class AuthController {
     required String password,
     required bool rememberMe,
   }) =>
-      _repo.signIn(email: email, password: password, rememberMe: rememberMe);
+      _repo.signIn(
+        email: email,
+        password: password,
+        rememberMe: rememberMe,
+      );
+
+  Future<AppUser?> signInWithGoogle() => _repo.signInWithGoogle();
 
   Future<AppUser> signUpOwner({
     required String fullName,

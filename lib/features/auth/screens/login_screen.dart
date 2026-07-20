@@ -107,8 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   width: 24,
                   child: Checkbox(
                     value: _rememberMe,
-                    onChanged: (v) =>
-                        setState(() => _rememberMe = v ?? true),
+                    onChanged: (v) => setState(() => _rememberMe = v ?? true),
                     activeColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
@@ -139,8 +138,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const _OrDivider(),
             const SizedBox(height: 20),
             GoogleButton(
-              onPressed: () =>
-                  context.showSnack('Google sign-in — coming soon'),
+              onPressed: () async {
+                setState(() => _loading = true);
+
+                try {
+                  final user =
+                      await ref.read(authControllerProvider).signInWithGoogle();
+
+                  if (!mounted || user == null) return;
+
+                  context.go(homeForRole(user.role));
+                } on AuthException catch (e) {
+                  if (!mounted) return;
+                  context.showSnack(e.message, error: true);
+                } catch (_) {
+                  if (!mounted) return;
+                  context.showSnack(
+                    'Google sign-in failed.',
+                    error: true,
+                  );
+                } finally {
+                  if (mounted) setState(() => _loading = false);
+                }
+              },
             ),
             const SizedBox(height: 28),
             Wrap(

@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-
 import '../../../core/constants/enums.dart';
 import '../domain/app_user.dart';
 import 'auth_repository.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Production [AuthRepository] backed by Firebase Auth + Firestore.
 ///
@@ -114,6 +114,50 @@ class FirebaseAuthRepository implements AuthRepository {
       await batch.commit();
 
       await cred.user!.updateDisplayName(fullName.trim());
+      return profile;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_friendly(e));
+    }
+  }
+
+  @override
+  Future<AppUser?> signInWithGoogle() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+
+      await googleSignIn.initialize();
+
+      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
+
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      final user = userCredential.user;
+      if (user == null) return null;
+
+      var profile = await _loadProfile(user);
+
+      if (profile == null) {
+        profile = AppUser(
+          uid: user.uid,
+          email: user.email ?? '',
+          displayName: user.displayName ?? '',
+          phone: user.phoneNumber ?? '',
+          gymId: '',
+          role: UserRole.owner,
+        );
+
+        await _userDoc(user.uid).set({
+          ...profile.toJson(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
       return profile;
     } on FirebaseAuthException catch (e) {
       throw AuthException(_friendly(e));

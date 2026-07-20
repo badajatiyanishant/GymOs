@@ -92,6 +92,12 @@ class LocalAuthRepository implements AuthRepository {
   Future<void> sendPasswordReset(String email) async {
     // Nothing to send locally; succeed so the UI can show its sent state.
   }
+  @override
+  Future<AppUser?> signInWithGoogle() async {
+    throw const AuthException(
+      'Google Sign-In is not available in local mode.',
+    );
+  }
 
   @override
   Future<void> signOut() async {
