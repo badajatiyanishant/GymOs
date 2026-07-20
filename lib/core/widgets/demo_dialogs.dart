@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/gym/domain/member.dart';
+import '../../features/gym/providers/gym_data_providers.dart';
 import '../theme/app_colors.dart';
 import '../utils/extensions.dart';
 import '../utils/validators.dart';
 import 'app_text_field.dart';
 import 'gradient_button.dart';
 
-/// Reusable, polished demo dialogs and sheets. They don't persist anything —
-/// they exist so every button in the prototype leads somewhere that feels real
-/// during a walkthrough.
+/// Reusable, polished dialogs and sheets. The Add Member sheet persists
+/// through the member repository (Firestore in cloud mode, local otherwise);
+/// the notifications sheet remains a lightweight preview.
 class DemoDialogs {
   DemoDialogs._();
 
-  /// Bottom sheet with a small "Add Member" form. On submit it closes and
-  /// confirms with a snackbar (no data is stored).
+  /// Bottom sheet with a small "Add Member" form. On submit the member is
+  /// saved through the repository and appears in the live members stream.
   static Future<void> addMember(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
@@ -56,14 +59,14 @@ class _SheetHandle extends StatelessWidget {
   }
 }
 
-class _AddMemberSheet extends StatefulWidget {
+class _AddMemberSheet extends ConsumerStatefulWidget {
   const _AddMemberSheet();
 
   @override
-  State<_AddMemberSheet> createState() => _AddMemberSheetState();
+  ConsumerState<_AddMemberSheet> createState() => _AddMemberSheetState();
 }
 
-class _AddMemberSheetState extends State<_AddMemberSheet> {
+class _AddMemberSheetState extends ConsumerState<_AddMemberSheet> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _phone = TextEditingController();
@@ -79,11 +82,27 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
     final name = _name.text.trim();
-    Navigator.of(context).pop();
-    context.showSnack('$name added to members');
+    final now = DateTime.now();
+    try {
+      await ref.read(memberRepositoryProvider).save(
+            Member(
+              id: 'm${now.microsecondsSinceEpoch}',
+              name: name,
+              phone: _phone.text.trim(),
+              planName: 'Monthly',
+              joinedAt: now,
+              expiresAt: now.add(const Duration(days: 30)),
+            ),
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      context.showSnack('$name added to members');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      context.showSnack('Could not save member. Try again.', error: true);
+    }
   }
 
   @override

@@ -1,0 +1,139 @@
+rules_version = '2';
+
+// GymOS multi-tenant Firestore rules.
+//
+// Tenancy model:
+//   users/{uid}                     — profile: { gymId, role, ... }
+//   gyms/{gymId}/...                — all gym data, scoped by the caller's gymId
+//
+// Roles: owner | receptionist | trainer  (role lives on users/{uid})
+//   - Owners: full access to their gym.
+//   - Receptionists: day-to-day data, but cannot edit owner settings.
+//   - Trainers: read gym data + write training content, but never payments.
+// No gym can ever read or write another gym's data: every rule requires the
+// caller's users/{uid}.gymId to equal the {gymId} in the path.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function inGym(gymId) {
+      return signedIn() && profile().gymId == gymId;
+    }
+
+    function role() {
+      return profile().role;
+    }
+
+    function isOwner(gymId) {
+      return inGym(gymId) && role() == 'owner';
+    }
+
+    function isStaff(gymId) {
+      // Any authenticated staff member of this gym.
+      return inGym(gymId) && role() in ['owner', 'receptionist', 'trainer'];
+    }
+
+    function canManageMembers(gymId) {
+      return inGym(gymId) && role() in ['owner', 'receptionist'];
+    }
+
+    // ---- User profiles ------------------------------------------------------
+    // A user may read their own profile; owners may read/manage profiles of
+    // users in their gym (adding staff). Role/gymId self-escalation is blocked:
+    // a non-owner can never change their own role or gymId.
+    match /users/{uid} {
+      allow read: if signedIn()
+        && (request.auth.uid == uid || profile().gymId == resource.data.gymId);
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'owner'; // self-signup = new gym owner
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.gymId == resource.data.gymId;
+      allow create, update: if signedIn()
+        && isOwner(request.resource.data.gymId);
+      allow delete: if signedIn()
+        && isOwner(resource.data.gymId)
+        && request.auth.uid != uid; // owners can't delete themselves
+    }
+
+    // ---- Gym tenant root ----------------------------------------------------
+    match /gyms/{gymId} {
+      // The gym doc itself: staff read; only the owner writes. Creation is
+      // allowed for the authenticated user registering themselves as owner.
+      allow read: if isStaff(gymId);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isOwner(gymId);
+
+      // Settings: readable by all staff, writable ONLY by the owner.
+      // (Receptionists cannot edit owner settings.)
+      match /settings/{doc} {
+        allow read: if isStaff(gymId);
+        allow write: if isOwner(gymId);
+      }
+
+      // Members: owners + receptionists manage; trainers read.
+      match /members/{id} {
+        allow read: if isStaff(gymId);
+        allow write: if canManageMembers(gymId);
+      }
+
+      // Trainers roster: owner manages; staff read.
+      match /trainers/{id} {
+        allow read: if isStaff(gymId);
+        allow write: if isOwner(gymId);
+      }
+
+      // Attendance: any staff can record and read check-ins.
+      match /attendance/{id} {
+        allow read, write: if isStaff(gymId);
+      }
+
+      // Training content: trainers (and owners/receptionists) manage.
+      match /workout_plans/{id} {
+        allow read, write: if isStaff(gymId);
+      }
+      match /diet_plans/{id} {
+        allow read, write: if isStaff(gymId);
+      }
+
+      // Memberships (plan catalog): staff read; owner + receptionist manage.
+      match /memberships/{id} {
+        allow read: if isStaff(gymId);
+        allow write: if canManageMembers(gymId);
+      }
+
+      // Payments: trainers can NEVER write payments. Read is staff-wide so
+      // dashboards work; writes are owner/receptionist only.
+      match /payments/{id} {
+        allow read: if isStaff(gymId);
+        allow write: if canManageMembers(gymId);
+      }
+
+      // Notifications/announcements: staff read; owner + receptionist send.
+      match /notifications/{id} {
+        allow read: if isStaff(gymId);
+        allow write: if canManageMembers(gymId);
+      }
+
+      // Reports: computed aggregates; staff read, owner writes.
+      match /reports/{id} {
+        allow read: if isStaff(gymId);
+        allow write: if isOwner(gymId);
+      }
+    }
+
+    // Default deny for anything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

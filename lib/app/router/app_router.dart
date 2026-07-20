@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/enums.dart';
 import '../../features/analytics/screens/analytics_screen.dart';
+import '../../features/auth/domain/app_user.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
@@ -14,17 +17,58 @@ import '../../features/settings/screens/settings_hub_screen.dart';
 import '../../features/shell/home_shell.dart';
 import 'route_paths.dart';
 
+/// Where each role lands after signing in. Trainers skip straight to the
+/// member roster (their day-to-day surface); owners and receptionists get the
+/// full dashboard.
+String homeForRole(UserRole role) => switch (role) {
+      UserRole.trainer => RoutePaths.members,
+      _ => RoutePaths.dashboard,
+    };
+
 /// Central GoRouter configuration.
 ///
 /// Flow: Splash → auth (login/signup/forgot) → a [StatefulShellRoute] hosting
 /// the four primary tabs (Home, Members, Analytics, Profile). Each tab is its
 /// own branch so navigation state survives tab switches.
+///
+/// Auth guarding: the router listens to [authStateProvider]. Signed-out users
+/// are pushed to login; signed-in users are kept out of the auth screens and
+/// sent to their role's home. Settings is owner-only.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final rootKey = GlobalKey<NavigatorState>();
+
+  // Bridge the auth stream into a Listenable so redirects re-run on change
+  // without rebuilding the router (which would reset navigation state).
+  final refresh = ValueNotifier(0);
+  ref
+    ..onDispose(refresh.dispose)
+    ..listen(authStateProvider, (_, __) => refresh.value++);
+
   return GoRouter(
     navigatorKey: rootKey,
     initialLocation: RoutePaths.splash,
     debugLogDiagnostics: false,
+    refreshListenable: refresh,
+    redirect: (context, state) {
+      final auth = ref.read(authStateProvider);
+      if (auth.isLoading) return null; // splash stays until auth resolves
+      final AppUser? user = auth.valueOrNull;
+
+      final loc = state.matchedLocation;
+      final onAuthScreen = loc == RoutePaths.login ||
+          loc == RoutePaths.signup ||
+          loc == RoutePaths.forgotPassword;
+
+      // Splash handles its own exit (branded minimum delay + auto-login).
+      if (loc == RoutePaths.splash) return null;
+
+      if (user == null) return onAuthScreen ? null : RoutePaths.login;
+      if (onAuthScreen) return homeForRole(user.role);
+      if (loc == RoutePaths.settings && !user.canEditSettings) {
+        return homeForRole(user.role);
+      }
+      return null;
+    },
     routes: [
       GoRoute(
         path: RoutePaths.splash,

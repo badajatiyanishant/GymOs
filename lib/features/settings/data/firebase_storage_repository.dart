@@ -1,17 +1,20 @@
 import 'dart:typed_data';
 
+import 'package:firebase_storage/firebase_storage.dart';
+
 import 'storage_repository.dart';
 
-/// Firebase Storage implementation — INACTIVE. Provided so the swap to a real
-/// backend is a one-line provider change with no UI impact. To enable:
-///   1. Add `firebase_storage` to pubspec.yaml.
-///   2. Uncomment the import + body below.
-///   3. Point `storageRepositoryProvider` at this class.
+/// Firebase Storage implementation of [StorageRepository] — ACTIVE.
 ///
 /// The contract matches [LocalStorageRepository]: [uploadImage] returns an
-/// https download URL instead of a `data:` URI; everything else is identical.
+/// https download URL instead of a `data:` URI; only the URL is ever stored
+/// in Firestore. Paths are scoped per gym: `gyms/{gymId}/{logical path}`.
 class FirebaseStorageRepository implements StorageRepository {
-  const FirebaseStorageRepository();
+  FirebaseStorageRepository({required this.gymId, FirebaseStorage? storage})
+      : _storage = storage ?? FirebaseStorage.instance;
+
+  final String gymId;
+  final FirebaseStorage _storage;
 
   @override
   Future<String> uploadImage({
@@ -19,22 +22,19 @@ class FirebaseStorageRepository implements StorageRepository {
     required Uint8List bytes,
     required String contentType,
   }) async {
-    // --- Enable with the firebase_storage package: ---
-    // final ref = FirebaseStorage.instance.ref(path);
-    // await ref.putData(bytes, SettableMetadata(contentType: contentType));
-    // return ref.getDownloadURL();
-    throw UnimplementedError(
-      'FirebaseStorageRepository is not enabled. Add firebase_storage and '
-      'switch storageRepositoryProvider to activate it.',
-    );
+    final ref = _storage.ref('gyms/$gymId/$path');
+    await ref.putData(bytes, SettableMetadata(contentType: contentType));
+    return ref.getDownloadURL();
   }
 
   @override
   Future<void> deleteImage(String reference) async {
-    // --- Enable with the firebase_storage package: ---
-    // await FirebaseStorage.instance.refFromURL(reference).delete();
-    throw UnimplementedError(
-      'FirebaseStorageRepository is not enabled.',
-    );
+    // Only delete objects we own (https URLs); data: URIs have no remote copy.
+    if (!reference.startsWith('http')) return;
+    try {
+      await _storage.refFromURL(reference).delete();
+    } on FirebaseException {
+      // Already gone or foreign URL — nothing to clean up.
+    }
   }
 }

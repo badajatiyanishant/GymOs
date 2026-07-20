@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router/app_router.dart';
 import '../../../app/router/route_paths.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -10,11 +12,14 @@ import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/google_button.dart';
 import '../../../core/widgets/gradient_button.dart';
 import '../../settings/providers/settings_providers.dart';
+import '../data/auth_repository.dart';
+import '../providers/auth_providers.dart';
 
-/// Email/password login with validation, a loading state and links out to
-/// signup and password reset. Auth is stubbed for the demo — a valid submit
-/// simply routes to the dashboard. Branding (logo + gym name) is read from the
-/// settings provider so the login screen reflects the owner's identity.
+/// Email/password login with validation, a loading state, Remember Me and
+/// links out to signup and password reset. Signs in through the
+/// [AuthRepository]; on success routes to the signed-in role's home.
+/// Branding (logo + gym name) is read from the settings provider so the login
+/// screen reflects the owner's identity.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -24,9 +29,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController(text: 'arjun@ironforge.fit');
-  final _password = TextEditingController(text: 'password');
+  final _email = TextEditingController();
+  final _password = TextEditingController();
   bool _loading = false;
+  bool _rememberMe = true;
 
   @override
   void dispose() {
@@ -38,10 +44,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    context.go(RoutePaths.dashboard);
+    try {
+      final user = await ref.read(authControllerProvider).signIn(
+            email: _email.text,
+            password: _password.text,
+            rememberMe: _rememberMe,
+          );
+      if (!mounted) return;
+      context.go(homeForRole(user.role));
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      context.showSnack(e.message, error: true);
+    } catch (_) {
+      if (!mounted) return;
+      context.showSnack('Sign in failed. Please try again.', error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -81,12 +100,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               validator: Validators.password,
               onSubmitted: (_) => _submit(),
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => context.push(RoutePaths.forgotPassword),
-                child: const Text('Forgot Password?'),
-              ),
+            Row(
+              children: [
+                SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: Checkbox(
+                    value: _rememberMe,
+                    onChanged: (v) =>
+                        setState(() => _rememberMe = v ?? true),
+                    activeColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _rememberMe = !_rememberMe),
+                    child: Text('Remember me', style: context.text.bodyMedium),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push(RoutePaths.forgotPassword),
+                  child: const Text('Forgot Password?'),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             GradientButton(
@@ -99,7 +139,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const _OrDivider(),
             const SizedBox(height: 20),
             GoogleButton(
-              onPressed: () => context.go(RoutePaths.dashboard),
+              onPressed: () =>
+                  context.showSnack('Google sign-in — coming soon'),
             ),
             const SizedBox(height: 28),
             Wrap(

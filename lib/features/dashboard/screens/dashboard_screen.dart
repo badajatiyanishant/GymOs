@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/utils/formatters.dart';
@@ -14,12 +16,18 @@ import '../../../core/widgets/stat_card.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../demo/demo_data.dart';
+import '../../gym/domain/gym_entities.dart';
+import '../../gym/providers/gym_data_providers.dart';
 import 'widgets/dashboard_header.dart';
 import 'widgets/quick_actions.dart';
 
 /// Gym-owner home. A scrollable dashboard: greeting header, KPI grid, weekly
-/// revenue chart, quick actions and a recent-payments feed — all populated with
-/// realistic demo data for the walkthrough.
+/// revenue chart, quick actions and a recent-payments feed.
+///
+/// KPIs and payments are LIVE: they watch the repository streams (Firestore
+/// realtime listeners in cloud mode), so check-ins, payments and member edits
+/// appear instantly with no manual refresh. While a collection is still empty
+/// (fresh gym) the demo figures keep the walkthrough looking populated.
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
@@ -74,20 +82,40 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-class _StatGrid extends StatelessWidget {
+class _StatGrid extends ConsumerWidget {
   const _StatGrid();
 
   @override
-  Widget build(BuildContext context) {
-    const cards = [
-      _StatData("Today's Revenue", null, Icons.payments_rounded,
-          AppColors.primary, '+12%', true),
-      _StatData('Active Members', '${DemoData.activeMembers}',
-          Icons.groups_rounded, AppColors.secondary, '+5%', true),
-      _StatData("Today's Attendance", '${DemoData.todayAttendance}',
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Live values from the repository streams; demo figures until real data
+    // exists so a fresh gym still demos well.
+    final revenue =
+        ref.watch(todayRevenueProvider) ?? DemoData.todayRevenue;
+    final liveMembers = ref.watch(activeMemberCountProvider);
+    final members =
+        (liveMembers == null || liveMembers == 0)
+            ? DemoData.activeMembers
+            : liveMembers;
+    final liveAttendance = ref.watch(todayAttendanceCountProvider);
+    final attendance = (liveAttendance == null || liveAttendance == 0)
+        ? DemoData.todayAttendance
+        : liveAttendance;
+    final liveRenewals = ref.watch(pendingRenewalCountProvider);
+    final renewals = (liveRenewals == null || liveRenewals == 0)
+        ? DemoData.pendingRenewals
+        : liveRenewals;
+    final displayRevenue =
+        revenue == 0 ? DemoData.todayRevenue : revenue;
+
+    final cards = [
+      _StatData("Today's Revenue", Formatters.currency(displayRevenue),
+          Icons.payments_rounded, AppColors.primary, '+12%', true),
+      _StatData('Active Members', '$members', Icons.groups_rounded,
+          AppColors.secondary, '+5%', true),
+      _StatData("Today's Attendance", '$attendance',
           Icons.how_to_reg_rounded, AppColors.info, '+8%', true),
-      _StatData('Pending Renewals', '${DemoData.pendingRenewals}',
-          Icons.autorenew_rounded, AppColors.warning, '-3%', false),
+      _StatData('Pending Renewals', '$renewals', Icons.autorenew_rounded,
+          AppColors.warning, '-3%', false),
     ];
 
     // Compute a card height from the actual available width so the two-column
@@ -109,8 +137,7 @@ class _StatGrid extends StatelessWidget {
             for (final c in cards)
               StatCard(
                 label: c.label,
-                value: c.value ??
-                    Formatters.currency(DemoData.todayRevenue),
+                value: c.value,
                 icon: c.icon,
                 color: c.color,
                 trend: c.trend,
@@ -127,7 +154,7 @@ class _StatGrid extends StatelessWidget {
 /// a [LayoutBuilder] without repeating each card's constructor.
 class _StatData {
   final String label;
-  final String? value; // null = computed (currency-formatted) at build
+  final String value;
   final IconData icon;
   final Color color;
   final String trend;
@@ -199,19 +226,43 @@ class _RevenueCard extends StatelessWidget {
   }
 }
 
-class _RecentPayments extends StatelessWidget {
+class _RecentPayments extends ConsumerWidget {
   const _RecentPayments();
 
   @override
-  Widget build(BuildContext context) {
-    const payments = DemoData.recentPayments;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Live payments stream (realtime in cloud mode); demo rows until the
+    // gym records its first real payment.
+    final live = ref.watch(paymentsStreamProvider).valueOrNull ?? const [];
+    final rows = live.isNotEmpty
+        ? [
+            for (final PaymentRecord p in live.take(6))
+              _PaymentRow(
+                name: p.memberName,
+                plan: p.planName.isEmpty ? p.method.label : p.planName,
+                amount: p.amount,
+                status: p.status,
+                date: p.paidAt,
+              ),
+          ]
+        : [
+            for (final p in DemoData.recentPayments)
+              _PaymentRow(
+                name: p.name,
+                plan: p.plan,
+                amount: p.amount,
+                status: p.status,
+                date: DateTime.now().subtract(Duration(days: p.daysAgo)),
+              ),
+          ];
+
     return GlassCard(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         children: [
-          for (var i = 0; i < payments.length; i++) ...[
-            _PaymentTile(payment: payments[i]),
-            if (i != payments.length - 1)
+          for (var i = 0; i < rows.length; i++) ...[
+            _PaymentTile(payment: rows[i]),
+            if (i != rows.length - 1)
               Divider(
                 height: 1,
                 indent: 68,
@@ -224,14 +275,31 @@ class _RecentPayments extends StatelessWidget {
   }
 }
 
+/// Display-model for a payment row, backend-agnostic (live or demo).
+class _PaymentRow {
+  final String name;
+  final String plan;
+  final int amount;
+  final PaymentStatus status;
+  final DateTime date;
+  const _PaymentRow({
+    required this.name,
+    required this.plan,
+    required this.amount,
+    required this.status,
+    required this.date,
+  });
+}
+
 class _PaymentTile extends StatelessWidget {
-  final DemoPayment payment;
+  final _PaymentRow payment;
   const _PaymentTile({required this.payment});
 
   String get _dateLabel {
-    if (payment.daysAgo == 0) return 'Today';
-    if (payment.daysAgo == 1) return 'Yesterday';
-    return '${payment.daysAgo} days ago';
+    final days = DateTime.now().difference(payment.date).inDays;
+    if (days <= 0) return 'Today';
+    if (days == 1) return 'Yesterday';
+    return '$days days ago';
   }
 
   @override

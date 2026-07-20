@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/firebase_bootstrap.dart';
 import '../../../core/services/local_storage_service.dart';
+import '../../auth/providers/auth_providers.dart';
+import '../data/firebase_storage_repository.dart';
+import '../data/firestore_settings_repository.dart';
 import '../data/local_settings_repository.dart';
 import '../data/local_storage_repository.dart';
 import '../data/settings_repository.dart';
@@ -16,32 +22,54 @@ import '../domain/payment_settings.dart';
 import '../domain/security_settings.dart';
 import '../domain/staff_settings.dart';
 
-/// THE SINGLE SWAP POINT. To move the whole app onto Firebase, change only the
-/// two providers below to return the Firestore/Firebase implementations — no
-/// UI, controller, or model code changes.
-///
-///   settingsRepositoryProvider → FirestoreSettingsRepository(gymId: ...)
-///   storageRepositoryProvider  → const FirebaseStorageRepository()
+/// THE SINGLE SWAP POINT. With Firebase configured (real firebase_options)
+/// the whole app runs on Firestore + Firebase Storage, scoped to the signed-in
+/// user's gym. Without it, the local implementations keep everything working.
+/// No UI, controller, or model code differs between the two.
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
+  if (FirebaseBootstrap.isActive) {
+    final gymId = ref.watch(gymIdProvider);
+    if (gymId.isNotEmpty) return FirestoreSettingsRepository(gymId: gymId);
+  }
   return LocalSettingsRepository(LocalStorageService.instance);
 });
 
 final storageRepositoryProvider = Provider<StorageRepository>((ref) {
+  if (FirebaseBootstrap.isActive) {
+    final gymId = ref.watch(gymIdProvider);
+    if (gymId.isNotEmpty) return FirebaseStorageRepository(gymId: gymId);
+  }
   return const LocalStorageRepository();
 });
 
 /// Reactive holder for the full [GymSettings] aggregate. Starts at seed defaults
-/// so the UI is never empty, then hydrates from the repository. Every mutation
-/// updates state immediately (optimistic) and persists through the repository.
+/// so the UI is never empty, hydrates from the repository, then stays
+/// subscribed to [SettingsRepository.watch] so remote edits (another device,
+/// another staff member) appear live. Every mutation updates state immediately
+/// (optimistic) and persists through the repository.
 class SettingsController extends StateNotifier<GymSettings> {
   SettingsController(this._repo) : super(GymSettings.seed()) {
     _hydrate();
   }
 
   final SettingsRepository _repo;
+  StreamSubscription<GymSettings>? _sub;
 
   Future<void> _hydrate() async {
-    state = await _repo.load();
+    try {
+      state = await _repo.load();
+      _sub = _repo.watch().listen((settings) {
+        if (mounted) state = settings;
+      }, onError: (Object _) {});
+    } catch (_) {
+      // Keep seed defaults; the app stays usable and saves will retry.
+    }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   Future<void> _commit(GymSettings next) async {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router/app_router.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/extensions.dart';
@@ -8,18 +10,20 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/gradient_button.dart';
+import '../data/auth_repository.dart';
+import '../providers/auth_providers.dart';
 
 /// Gym-owner registration form: full name, gym name, email, phone and a
-/// matched password pair, gated behind a terms checkbox. Fully validated; the
-/// demo submit routes straight to the dashboard.
-class SignupScreen extends StatefulWidget {
+/// matched password pair, gated behind a terms checkbox. Creates the auth
+/// user, the gym tenant and the owner profile in one flow.
+class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullName = TextEditingController();
   final _gymName = TextEditingController();
@@ -55,10 +59,25 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
     setState(() => _loading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    context.go(RoutePaths.dashboard);
+    try {
+      final user = await ref.read(authControllerProvider).signUpOwner(
+            fullName: _fullName.text,
+            gymName: _gymName.text,
+            email: _email.text,
+            phone: _phone.text,
+            password: _password.text,
+          );
+      if (!mounted) return;
+      context.go(homeForRole(user.role));
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      context.showSnack(e.message, error: true);
+    } catch (_) {
+      if (!mounted) return;
+      context.showSnack('Sign up failed. Please try again.', error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override

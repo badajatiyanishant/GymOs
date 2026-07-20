@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_paths.dart';
@@ -8,17 +9,20 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/gradient_button.dart';
+import '../data/auth_repository.dart';
+import '../providers/auth_providers.dart';
 
-/// Password reset request. On a valid email it flips to a success state that
-/// confirms the reset link was "sent" (stubbed for the demo).
-class ForgotPasswordScreen extends StatefulWidget {
+/// Password reset request. Sends a real reset email through the auth
+/// repository, then flips to a success state confirming the link was sent.
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   bool _loading = false;
@@ -33,12 +37,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() {
-      _loading = false;
-      _sent = true;
-    });
+    try {
+      await ref
+          .read(authControllerProvider)
+          .sendPasswordReset(_email.text);
+      if (!mounted) return;
+      setState(() => _sent = true);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      context.showSnack(e.message, error: true);
+    } catch (_) {
+      if (!mounted) return;
+      context.showSnack('Could not send reset email. Try again.', error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override

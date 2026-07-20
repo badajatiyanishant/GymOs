@@ -1,49 +1,66 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router/app_router.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/extensions.dart';
+import '../providers/auth_providers.dart';
 
-/// Branded splash with a pulsing logo and progress bar, then auto-advances to
-/// the login flow. For the demo it uses a fixed delay; a real build would gate
-/// on the auth state stream here.
-class SplashScreen extends StatefulWidget {
+/// Branded splash with a pulsing logo and progress bar. Waits for the auth
+/// state to resolve (with a minimum branded delay), then auto-advances: a
+/// restored session goes straight to the role's home (auto-login); otherwise
+/// to the login flow.
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1600),
   )..repeat(reverse: true);
 
-  Timer? _redirect;
+  Timer? _minDelay;
+  bool _delayDone = false;
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
-    _redirect = Timer(const Duration(milliseconds: 2400), () {
-      if (mounted) context.go(RoutePaths.login);
+    _minDelay = Timer(const Duration(milliseconds: 1800), () {
+      _delayDone = true;
+      _tryAdvance();
     });
+  }
+
+  void _tryAdvance() {
+    if (!mounted || _navigated || !_delayDone) return;
+    final auth = ref.read(authStateProvider);
+    if (auth.isLoading) return; // listener below will retry on resolve
+    _navigated = true;
+    final user = auth.valueOrNull;
+    context.go(user == null ? RoutePaths.login : homeForRole(user.role));
   }
 
   @override
   void dispose() {
-    _redirect?.cancel();
+    _minDelay?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authStateProvider, (_, __) => _tryAdvance());
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.primaryGradient),

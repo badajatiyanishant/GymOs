@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,18 +13,30 @@ import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../demo/demo_data.dart';
+import '../../gym/providers/gym_data_providers.dart';
 
 /// Members management: a live search field, status filter chips and a scrollable
-/// list of member cards, with a floating "Add Member" action. Filtering runs
-/// entirely over the in-memory demo list.
-class MembersScreen extends StatefulWidget {
+/// list of member cards, with a floating "Add Member" action.
+///
+/// The list watches the member repository stream — realtime with Firestore —
+/// and falls back to demo rows while the gym has no members yet.
+class MembersScreen extends ConsumerStatefulWidget {
   const MembersScreen({super.key});
 
   @override
-  State<MembersScreen> createState() => _MembersScreenState();
+  ConsumerState<MembersScreen> createState() => _MembersScreenState();
 }
 
-class _MembersScreenState extends State<MembersScreen> {
+/// Backend-agnostic row model (live member or demo entry).
+class _MemberRow {
+  final String name;
+  final String plan;
+  final MembershipStatus status;
+  final int daysToExpiry;
+  const _MemberRow(this.name, this.plan, this.status, this.daysToExpiry);
+}
+
+class _MembersScreenState extends ConsumerState<MembersScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   _MemberFilter _filter = _MemberFilter.all;
@@ -34,8 +47,22 @@ class _MembersScreenState extends State<MembersScreen> {
     super.dispose();
   }
 
-  List<DemoMember> get _filtered {
-    return DemoData.members.where((m) {
+  List<_MemberRow> _allRows() {
+    final live = ref.watch(membersStreamProvider).valueOrNull ?? const [];
+    if (live.isNotEmpty) {
+      return [
+        for (final m in live)
+          _MemberRow(m.name, m.planName, m.status, m.daysToExpiry),
+      ];
+    }
+    return [
+      for (final m in DemoData.members)
+        _MemberRow(m.name, m.plan, m.status, m.daysToExpiry),
+    ];
+  }
+
+  List<_MemberRow> _filtered(List<_MemberRow> all) {
+    return all.where((m) {
       final matchesQuery =
           m.name.toLowerCase().contains(_query.toLowerCase().trim());
       final matchesFilter = switch (_filter) {
@@ -50,7 +77,8 @@ class _MembersScreenState extends State<MembersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final members = _filtered;
+    final all = _allRows();
+    final members = _filtered(all);
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => DemoDialogs.addMember(context),
@@ -71,7 +99,7 @@ class _MembersScreenState extends State<MembersScreen> {
                   Text('Members', style: context.text.headlineSmall),
                   const Spacer(),
                   Text(
-                    '${DemoData.members.length} total',
+                    '${all.length} total',
                     style: context.text.bodySmall,
                   ),
                 ],
@@ -178,7 +206,7 @@ class _FilterChips extends StatelessWidget {
 }
 
 class _MemberCard extends StatelessWidget {
-  final DemoMember member;
+  final _MemberRow member;
   const _MemberCard({required this.member});
 
   @override
@@ -226,7 +254,7 @@ class _MemberCard extends StatelessWidget {
     );
   }
 
-  String _expiryLabel(DemoMember m) {
+  String _expiryLabel(_MemberRow m) {
     final date = DateTime.now().add(Duration(days: m.daysToExpiry));
     return Formatters.relativeExpiry(date);
   }

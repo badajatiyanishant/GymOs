@@ -1,0 +1,70 @@
+rules_version = '2';
+
+// GymOS Firebase Storage rules.
+//
+// All binary assets live under gyms/{gymId}/... (logos, profile photos,
+// workout/diet images, QR codes). Access mirrors Firestore tenancy: a user
+// may only touch objects under their own gym, verified against their
+// users/{uid} profile document in Firestore.
+//
+// NOTE: in Storage rules access is granted if ANY match allows it, so paths
+// are partitioned into non-overlapping folders instead of using a catch-all.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function profile() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function inGym(gymId) {
+      return request.auth != null && profile().gymId == gymId;
+    }
+
+    function isOwner(gymId) {
+      return inGym(gymId) && profile().role == 'owner';
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 8 * 1024 * 1024; // 8 MB cap
+    }
+
+    // Branding (logo, banners): owner-only writes — matches settings rules.
+    match /gyms/{gymId}/branding/{file=**} {
+      allow read: if inGym(gymId);
+      allow write: if isOwner(gymId) && isImage();
+      allow delete: if isOwner(gymId);
+    }
+
+    // Member profile photos + QR codes: any staff.
+    match /gyms/{gymId}/members/{file=**} {
+      allow read: if inGym(gymId);
+      allow write: if inGym(gymId) && isImage();
+      allow delete: if inGym(gymId);
+    }
+
+    // Workout & diet images: any staff (trainers author these).
+    match /gyms/{gymId}/workouts/{file=**} {
+      allow read: if inGym(gymId);
+      allow write: if inGym(gymId) && isImage();
+      allow delete: if inGym(gymId);
+    }
+    match /gyms/{gymId}/diets/{file=**} {
+      allow read: if inGym(gymId);
+      allow write: if inGym(gymId) && isImage();
+      allow delete: if inGym(gymId);
+    }
+
+    // QR codes (check-in codes rendered by the app).
+    match /gyms/{gymId}/qr/{file=**} {
+      allow read: if inGym(gymId);
+      allow write: if inGym(gymId) && isImage();
+      allow delete: if inGym(gymId);
+    }
+
+    // Everything else: denied.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

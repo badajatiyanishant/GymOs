@@ -7,11 +7,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../../settings/domain/appearance_settings.dart';
 import '../../settings/providers/settings_providers.dart';
 
 /// Owner profile: identity header, a grouped settings list, a dark-mode toggle
-/// wired to branding settings, and logout (routes back to login).
+/// wired to branding settings, and logout (signs out via the auth repository;
+/// the router redirect returns to login).
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -88,7 +90,10 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
-              onPressed: () => context.go(RoutePaths.login),
+              onPressed: () async {
+                await ref.read(authControllerProvider).signOut();
+                if (context.mounted) context.go(RoutePaths.login);
+              },
               icon: const Icon(Icons.logout_rounded, color: AppColors.danger),
               label: const Text('Logout',
                   style: TextStyle(color: AppColors.danger)),
@@ -114,18 +119,25 @@ class _ProfileCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final info = ref.watch(gymInfoProvider);
+    final user = ref.watch(currentUserProvider);
+    // Prefer the signed-in account; fall back to owner info from settings.
+    final name = user?.displayName.isNotEmpty ?? false
+        ? user!.displayName
+        : info.ownerName;
+    final email = user?.email.isNotEmpty ?? false ? user!.email : info.email;
+    final roleLabel = user?.role.label ?? 'Gym Owner';
     return GlassCard(
       child: Row(
         children: [
-          UserAvatar(name: info.ownerName, radius: 32),
+          UserAvatar(name: name, radius: 32),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(info.ownerName, style: context.text.titleMedium),
+                Text(name, style: context.text.titleMedium),
                 const SizedBox(height: 2),
-                Text(info.email, style: context.text.bodySmall),
+                Text(email, style: context.text.bodySmall),
                 const SizedBox(height: 8),
                 Container(
                   padding:
@@ -134,9 +146,9 @@ class _ProfileCard extends ConsumerWidget {
                     gradient: AppColors.primaryGradient,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'Gym Owner',
-                    style: TextStyle(
+                  child: Text(
+                    roleLabel,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
