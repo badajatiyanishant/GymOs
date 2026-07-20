@@ -10,6 +10,7 @@ import '../../features/auth/screens/splash_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/members/screens/members_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/settings/screens/settings_hub_screen.dart';
 import '../../features/shell/home_shell.dart';
 import 'route_paths.dart';
 
@@ -41,6 +42,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.forgotPassword,
         pageBuilder: (context, state) =>
             _slide(state, const ForgotPasswordScreen()),
+      ),
+      GoRoute(
+        path: RoutePaths.settings,
+        pageBuilder: (context, state) =>
+            _slide(state, const SettingsHubScreen()),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

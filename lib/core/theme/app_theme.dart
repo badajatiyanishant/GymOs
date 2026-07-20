@@ -14,8 +14,10 @@ class AppTheme {
   static const double radiusSm = 12;
   static const double radiusLg = 28;
 
-  static ThemeData get light => _build(
+  static ThemeData light({Color? primary, Color? secondary}) => _build(
         brightness: Brightness.light,
+        primary: primary ?? AppColors.primary,
+        secondary: secondary ?? AppColors.secondary,
         scaffold: AppColors.lightBg,
         surface: AppColors.lightSurface,
         card: AppColors.lightCard,
@@ -24,8 +26,10 @@ class AppTheme {
         textSecondary: AppColors.lightTextSecondary,
       );
 
-  static ThemeData get dark => _build(
+  static ThemeData dark({Color? primary, Color? secondary}) => _build(
         brightness: Brightness.dark,
+        primary: primary ?? AppColors.primary,
+        secondary: secondary ?? AppColors.secondary,
         scaffold: AppColors.darkBg,
         surface: AppColors.darkSurface,
         card: AppColors.darkCard,
@@ -36,6 +40,8 @@ class AppTheme {
 
   static ThemeData _build({
     required Brightness brightness,
+    required Color primary,
+    required Color secondary,
     required Color scaffold,
     required Color surface,
     required Color card,
@@ -44,10 +50,10 @@ class AppTheme {
     required Color textSecondary,
   }) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+      seedColor: primary,
       brightness: brightness,
-      primary: AppColors.primary,
-      secondary: AppColors.secondary,
+      primary: primary,
+      secondary: secondary,
       surface: surface,
       error: AppColors.danger,
     );
@@ -96,7 +102,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusSm),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
+          borderSide: BorderSide(color: primary, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusSm),
@@ -105,7 +111,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size.fromHeight(54),
@@ -126,7 +132,7 @@ class AppTheme {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+        style: TextButton.styleFrom(foregroundColor: primary),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: brightness == Brightness.light
@@ -140,7 +146,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
-        indicatorColor: AppColors.primary.withValues(alpha: 0.14),
+        indicatorColor: primary.withValues(alpha: 0.14),
         elevation: 0,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),

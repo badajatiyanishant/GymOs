@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_paths.dart';
@@ -8,18 +9,20 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/auth_scaffold.dart';
 import '../../../core/widgets/google_button.dart';
 import '../../../core/widgets/gradient_button.dart';
+import '../../settings/providers/settings_providers.dart';
 
 /// Email/password login with validation, a loading state and links out to
 /// signup and password reset. Auth is stubbed for the demo — a valid submit
-/// simply routes to the dashboard.
-class LoginScreen extends StatefulWidget {
+/// simply routes to the dashboard. Branding (logo + gym name) is read from the
+/// settings provider so the login screen reflects the owner's identity.
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController(text: 'arjun@ironforge.fit');
   final _password = TextEditingController(text: 'password');
@@ -43,15 +46,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final info = ref.watch(gymInfoProvider);
+    final appearance = ref.watch(appearanceProvider);
     return AuthScaffold(
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AuthHeader(
+            AuthHeader(
               title: 'Welcome back',
-              subtitle: 'Sign in to manage your gym',
+              subtitle: 'Sign in to manage ${info.gymName}',
+              logoReference: appearance.appLogoUrl.isNotEmpty
+                  ? appearance.appLogoUrl
+                  : info.logoUrl,
             ),
             const SizedBox(height: 32),
             AppTextField(

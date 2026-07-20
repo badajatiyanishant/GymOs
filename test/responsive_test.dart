@@ -9,7 +9,7 @@ import 'package:gympro/features/dashboard/screens/dashboard_screen.dart';
 import 'package:gympro/features/members/screens/members_screen.dart';
 
 Widget _host(Widget child) => ProviderScope(
-      child: MaterialApp(theme: AppTheme.light, home: child),
+      child: MaterialApp(theme: AppTheme.light(), home: child),
     );
 
 void main() {

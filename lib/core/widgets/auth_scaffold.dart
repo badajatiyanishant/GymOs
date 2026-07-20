@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../features/settings/widgets/image_field.dart';
 import '../theme/app_colors.dart';
 import '../utils/extensions.dart';
 
@@ -66,33 +67,53 @@ class AuthScaffold extends StatelessWidget {
   }
 }
 
-/// Brand mark + title block reused at the top of each auth screen.
+/// Brand mark + title block reused at the top of each auth screen. When a
+/// [logoReference] is supplied (from gym settings) it renders the gym's own
+/// logo; otherwise it falls back to the default gradient mark.
 class AuthHeader extends StatelessWidget {
   final String title;
   final String subtitle;
+  final String logoReference;
 
-  const AuthHeader({super.key, required this.title, required this.subtitle});
+  const AuthHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.logoReference = '',
+  });
 
   @override
   Widget build(BuildContext context) {
+    final mark = Container(
+      height: 72,
+      width: 72,
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.4),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.fitness_center_rounded,
+          color: Colors.white, size: 38),
+    );
+
     return Column(
       children: [
-        Container(
-          height: 72,
-          width: 72,
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.4),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
+        ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: SizedBox(
+            height: 72,
+            width: 72,
+            child: BrandImage(
+              reference: logoReference,
+              fallback: mark,
+            ),
           ),
-          child: const Icon(Icons.fitness_center_rounded,
-              color: Colors.white, size: 38),
         ),
         const SizedBox(height: 20),
         Text(title, textAlign: TextAlign.center, style: context.text.headlineMedium),
