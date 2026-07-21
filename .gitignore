@@ -63,7 +63,7 @@ unlinked_spec.ds
 # Firebase secrets (keep out of VCS)
 google-services.json
 GoogleService-Info.plist
-firebase_options.dart
+# firebase_options.dart
 .firebase/
 
 # Coverage
